@@ -1,0 +1,5 @@
+<resources>
+    <string name="app_name">VidéoCash</string>
+    <!-- Web Client ID pour Google Sign-In (remplacé automatiquement lors de la génération avec google-services.json) -->
+    <string name="default_web_client_id" translatable="false">635489204234-videocash.apps.googleusercontent.com</string>
+</resources>

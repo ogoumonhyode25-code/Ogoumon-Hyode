@@ -1,0 +1,148 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() && (
+        request.auth.token.admin == true ||
+        request.auth.token.role == 'admin' ||
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin')
+      );
+    }
+
+    // 1. RÈGLES DE LA COLLECTION USERS
+    match /users/{userId} {
+      allow read: if isAuthenticated();
+      allow create: if isOwner(userId)
+                    && request.resource.data.role == 'user'
+                    && request.resource.data.status == 'active';
+      allow update: if (isOwner(userId)
+                        && request.resource.data.role == resource.data.role
+                        && (request.resource.data.status == resource.data.status || request.resource.data.status == 'deleted')
+                        && request.resource.data.email == resource.data.email)
+                    || isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    // 2. RÈGLES DE LA COLLECTION WALLETS (PORTEFEUILLE)
+    // RÈGLE ABSOLUE : Les soldes ne peuvent JAMAIS être modifiés arbitrairement par le client Android.
+    match /wallets/{userId} {
+      allow read: if isOwner(userId) || isAdmin();
+      allow create: if isOwner(userId)
+                    && request.resource.data.availableBalance <= 5000
+                    && request.resource.data.pendingBalance == 0;
+      allow update: if isAdmin();
+      allow delete: if false;
+    }
+
+    // 3. RÈGLES DE LA COLLECTION TRANSACTIONS
+    // Seul le serveur (Cloud Functions) ou l'admin peut générer des transactions financières
+    match /transactions/{transactionId} {
+      allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow write: if isAdmin();
+      allow delete: if false; // Une transaction ne doit JAMAIS être supprimée
+    }
+
+    // 4. RÈGLES DE LA COLLECTION WITHDRAWALS (RETRAITS)
+    match /withdrawals/{withdrawalId} {
+      allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow write: if isAdmin();
+    }
+
+    // 5. RÈGLES DE PRÉVENTION DES DOUBLONS DE RÉCOMPENSES
+    match /rewardEvents/{eventId} {
+      allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow write: if isAdmin();
+    }
+
+    // 6. PARAMÈTRES GLOBAUX (SETTINGS)
+    match /settings/{settingId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    // 7. JOURNAL D'AUDIT (AUDIT LOGS)
+    // Inaltérable et jamais supprimable depuis le client
+    match /auditLogs/{logId} {
+      allow read: if isAdmin();
+      allow create: if isAdmin();
+      allow update: if false;
+      allow delete: if false;
+    }
+
+    // 8. SIGNALEMENTS (REPORTS)
+    match /reports/{reportId} {
+      allow read: if isAdmin() || (isAuthenticated() && resource.data.reporterId == request.auth.uid);
+      allow create: if isAuthenticated()
+                    && request.resource.data.reporterId == request.auth.uid
+                    && request.resource.data.status == 'pending';
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    // 9. NOTIFICATIONS
+    match /notifications/{notificationId} {
+      allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow update: if isAuthenticated()
+                    && resource.data.userId == request.auth.uid
+                    && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read']);
+      allow delete: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow create: if isAdmin();
+    }
+
+    // 10. TOKENS D'APPAREILS FCM (USER DEVICES)
+    match /userDevices/{deviceId} {
+      allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+      allow update: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow delete: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
+    }
+
+    // 11. RÈGLES DE LA COLLECTION VIDEOS
+    match /videos/{videoId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated()
+                    && request.resource.data.userId == request.auth.uid
+                    && request.resource.data.status == 'published'
+                    && request.resource.data.likesCount == 0
+                    && request.resource.data.commentsCount == 0
+                    && request.resource.data.viewsCount == 0;
+      allow update: if (isAuthenticated() && resource.data.userId == request.auth.uid) || isAdmin();
+      allow delete: if (isAuthenticated() && resource.data.userId == request.auth.uid) || isAdmin();
+    }
+
+    // 12. RÈGLES DE LA COLLECTION LIKES
+    match /likes/{likeId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+      allow delete: if isAuthenticated() && resource.data.userId == request.auth.uid;
+      allow update: if false;
+    }
+
+    // 13. RÈGLES DE LA COLLECTION COMMENTS
+    match /comments/{commentId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+      allow update: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin() || request.resource.data.status == 'flagged');
+      allow delete: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
+    }
+
+    // 14. RÈGLES DE LA COLLECTION FOLLOWS
+    match /follows/{followId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && request.resource.data.followerId == request.auth.uid;
+      allow delete: if isAuthenticated() && resource.data.followerId == request.auth.uid;
+      allow update: if false;
+    }
+  }
+}
