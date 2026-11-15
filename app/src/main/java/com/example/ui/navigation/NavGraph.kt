@@ -139,6 +139,9 @@ fun VideoCashNavGraph(
                 onNavigateToContact = {
                     navController.navigate(Screen.ContactOwner.route)
                 },
+                onNavigateToDownloads = {
+                    navController.navigate(Screen.Downloads.route)
+                },
                 profileViewModel = profileViewModel
             )
         }
@@ -218,6 +221,15 @@ fun VideoCashNavGraph(
         // 13. Page Contact / Propriétaire
         composable(Screen.ContactOwner.route) {
             ContactOwnerScreen(
+                onNavigateBack = {
+                    navController.popBackStack()
+                }
+            )
+        }
+
+        // 14. Écran Téléchargements Mobiles Hors-Ligne
+        composable(Screen.Downloads.route) {
+            com.example.ui.screens.downloads.DownloadsScreen(
                 onNavigateBack = {
                     navController.popBackStack()
                 }

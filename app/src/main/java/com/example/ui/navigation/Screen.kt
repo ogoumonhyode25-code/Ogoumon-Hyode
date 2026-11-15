@@ -33,6 +33,7 @@ sealed class Screen(val route: String) {
     object DeleteAccount : Screen("delete_account")
     object Maintenance : Screen("maintenance")
     object ContactOwner : Screen("contact_owner")
+    object Downloads : Screen("downloads")
 }
 
 /**

@@ -25,6 +25,7 @@ import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.Error
+import androidx.compose.material.icons.filled.FileDownload
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.Verified
@@ -76,6 +77,7 @@ fun ProfileScreen(
     onNavigateToHelp: () -> Unit = {},
     onNavigateToDeleteAccount: () -> Unit = {},
     onNavigateToContact: () -> Unit = {},
+    onNavigateToDownloads: () -> Unit = {},
     viewModel: ProfileViewModel
 ) {
     val user by viewModel.userProfile.collectAsStateWithLifecycle()
@@ -525,6 +527,12 @@ fun ProfileScreen(
                         modifier = Modifier.padding(bottom = 8.dp)
                     )
 
+                    ProfileMenuRowItem(
+                        icon = Icons.Default.FileDownload,
+                        title = "Téléchargements Mobiles (Hors-ligne)",
+                        onClick = onNavigateToDownloads,
+                        testTag = "menu_downloads"
+                    )
                     ProfileMenuRowItem(
                         icon = Icons.Default.SupportAgent,
                         title = "Contact / Propriétaire",

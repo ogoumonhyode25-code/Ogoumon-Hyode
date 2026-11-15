@@ -11,5 +11,6 @@ class VideoCashApplication : Application() {
     override fun onCreate() {
         super.onCreate()
         FirebaseManager.init(this)
+        com.example.util.MobileDownloadManager.init(this)
     }
 }

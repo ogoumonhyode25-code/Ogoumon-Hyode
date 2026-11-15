@@ -1,5 +1,6 @@
 package com.example.ui.screens.wallet
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -25,6 +26,16 @@ fun WalletContainerScreen(
     modifier: Modifier = Modifier
 ) {
     var currentDestination by remember { mutableStateOf<WalletDestination>(WalletDestination.Main) }
+
+    // Interception du bouton Retour système (BackHandler)
+    if (currentDestination != WalletDestination.Main) {
+        BackHandler {
+            currentDestination = when (currentDestination) {
+                is WalletDestination.WithdrawalDetail -> WalletDestination.WithdrawalHistory
+                else -> WalletDestination.Main
+            }
+        }
+    }
 
     when (val dest = currentDestination) {
         WalletDestination.Main -> {

@@ -28,6 +28,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Comment
+import androidx.compose.material.icons.filled.DownloadDone
+import androidx.compose.material.icons.filled.FileDownload
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.Person
@@ -91,6 +93,8 @@ fun HomeScreen(
 
     var activeCommentVideoId by remember { mutableStateOf<String?>(null) }
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+
+    val downloadProgressMap by com.example.util.MobileDownloadManager.downloadProgressMap.collectAsState()
 
     // Gestion des erreurs
     LaunchedEffect(uiState.errorMessage) {
@@ -156,10 +160,39 @@ fun HomeScreen(
                     isLiked = uiState.likedVideoIds.contains(video.id),
                     isFollowing = uiState.followedUserIds.contains(video.userId),
                     isCurrentUser = video.userId == homeViewModel.currentUserId,
+                    downloadProgressMap = downloadProgressMap,
+                    isVideoDownloaded = { id ->
+                        com.example.util.MobileDownloadManager.isVideoDownloaded(id)
+                    },
                     onToggleLike = { homeViewModel.toggleLike(video) },
                     onToggleFollow = { homeViewModel.toggleFollow(video.userId) },
                     onOpenComments = { activeCommentVideoId = video.id },
                     onShare = { ShareHelper.shareVideo(context, video) },
+                    onDownloadVideo = { targetVideo ->
+                        if (com.example.util.MobileDownloadManager.isVideoDownloaded(targetVideo.id)) {
+                            scope.launch {
+                                snackbarHostState.showSnackbar("Vidéo déjà enregistrée pour lecture hors-ligne.")
+                            }
+                        } else {
+                            scope.launch {
+                                snackbarHostState.showSnackbar("Téléchargement de la vidéo en cours...")
+                                com.example.util.MobileDownloadManager.downloadVideo(
+                                    context = context,
+                                    video = targetVideo,
+                                    onSuccess = {
+                                        scope.launch {
+                                            snackbarHostState.showSnackbar("Vidéo enregistrée avec succès sur votre téléphone !")
+                                        }
+                                    },
+                                    onError = { err ->
+                                        scope.launch {
+                                            snackbarHostState.showSnackbar(err)
+                                        }
+                                    }
+                                )
+                            }
+                        }
+                    },
                     onProfileClick = { onNavigateToProfile(video.userId) }
                 )
             }
@@ -201,10 +234,13 @@ private fun VideoPageItem(
     isLiked: Boolean,
     isFollowing: Boolean,
     isCurrentUser: Boolean,
+    downloadProgressMap: Map<String, Float>,
+    isVideoDownloaded: (String) -> Boolean,
     onToggleLike: () -> Unit,
     onToggleFollow: () -> Unit,
     onOpenComments: () -> Unit,
     onShare: () -> Unit,
+    onDownloadVideo: (Video) -> Unit,
     onProfileClick: () -> Unit
 ) {
     Box(modifier = Modifier.fillMaxSize()) {
@@ -282,6 +318,47 @@ private fun VideoPageItem(
                 testTag = "share_button_${video.id}",
                 onClick = onShare
             )
+
+            // Bouton Téléchargement Mobile Hors-Ligne
+            val isDownloaded = isVideoDownloaded(video.id)
+            val downloadProgress = downloadProgressMap[video.id]
+
+            if (downloadProgress != null) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    modifier = Modifier.padding(vertical = 2.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(44.dp)
+                            .clip(CircleShape)
+                            .background(Color.Black.copy(alpha = 0.45f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        CircularProgressIndicator(
+                            progress = { downloadProgress },
+                            modifier = Modifier.size(28.dp),
+                            color = com.example.ui.theme.VideoCashGoldAccent,
+                            strokeWidth = 3.dp
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(3.dp))
+                    Text(
+                        text = "${(downloadProgress * 100).toInt()}%",
+                        color = com.example.ui.theme.VideoCashGoldAccent,
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            } else {
+                ActionButton(
+                    icon = if (isDownloaded) Icons.Default.DownloadDone else Icons.Default.FileDownload,
+                    label = if (isDownloaded) "Enregistré" else "Télécharger",
+                    iconColor = if (isDownloaded) com.example.ui.theme.VideoCashEmerald else Color.White,
+                    testTag = "download_button_${video.id}",
+                    onClick = { onDownloadVideo(video) }
+                )
+            }
 
             // Indicateur de vues
             Column(

@@ -61,6 +61,7 @@ fun MainContainerScreen(
     onNavigateToHelp: () -> Unit = {},
     onNavigateToDeleteAccount: () -> Unit = {},
     onNavigateToContact: () -> Unit = {},
+    onNavigateToDownloads: () -> Unit = {},
     profileViewModel: ProfileViewModel = viewModel()
 ) {
     var currentItem by remember { mutableStateOf<BottomNavItem>(BottomNavItem.Home) }
@@ -194,6 +195,7 @@ fun MainContainerScreen(
                     onNavigateToHelp = onNavigateToHelp,
                     onNavigateToDeleteAccount = onNavigateToDeleteAccount,
                     onNavigateToContact = onNavigateToContact,
+                    onNavigateToDownloads = onNavigateToDownloads,
                     viewModel = profileViewModel
                 )
             }
